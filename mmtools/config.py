@@ -60,7 +60,7 @@ def check_entries(experiments, base=None):
     base: folder relative paths are taken from (default: the current folder).
     """
     from .excel import list_excels, parse_areas
-    problems = []
+    problems, used = [], {}
     try:
         entries = as_entries(experiments)
     except Exception as err:                                     # e.g. a missing key
@@ -86,6 +86,13 @@ def check_entries(experiments, base=None):
             missing = sorted(want - set(files)) if want else []
             if missing:
                 problems.append(f'{where}: no Excel file for areas {missing} (there are {min(files)}–{max(files)})')
+            key = folder.resolve()
+            for a in sorted((want or set(files)) & set(files)):
+                if (key, a) in used:
+                    problems.append(f'{where}: area {a} of this folder is already in line {used[(key, a)]}'
+                                    ' (each area can be in only one line)')
+                    break
+                used[(key, a)] = i
         if e.flow_start and not CLOCK_RE.match(str(e.flow_start)):
             problems.append(f"{where}: cannot read the flow start '{e.flow_start}' (write HH:MM)")
     return problems

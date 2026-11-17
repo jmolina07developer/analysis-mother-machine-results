@@ -4,6 +4,27 @@ Jupyter notebooks that take the Excel sheets of the mother cells written by the
 [mother machine pipeline](https://github.com/jmolina07developer/mother-machine-pipeline)
 (`<area>-<date>_longitud_madres.xlsx`) and run different analyses on them.
 
+There are two ways to use them: a **graphical interface** in the web browser, for people who do not program,
+and the **notebooks**, which explain every step. Both use the same code (`mmtools/`) and give the same results.
+
+## Graphical interface (no programming)
+
+1. **Install once**: download this folder (**Code › Download ZIP**, then unzip it) and double-click
+   `install_windows.bat` (Windows) or `install_mac.command` (macOS; the first time: right-click › Open › Open).
+   It installs Miniforge (conda) if needed and an environment called `mmanalysis` (~5 min, needs internet).
+2. **Open it**: double-click `start_windows.bat` (or the *Mother machine analyses* shortcut on the Desktop) or
+   `start_mac.command`. The interface opens in the web browser (http://localhost:8502); keep the black window
+   open while you use it, close it to stop.
+3. **1 · Experiments**: choose each folder of Excel files and write the condition of each group of areas (and the
+   flow start, if you know it). The page checks that everything can be read.
+4. Choose an analysis on the left, adjust the settings (every one has a ⓘ) and press **▶ Run**. The figures and
+   tables appear on the page and are saved in the results folder, in `<analysis>/<run name>/`, together with a
+   `settings.json` that **↩ Load a previous run** reads back to repeat or change the run.
+
+The experiments and the last settings of each analysis are remembered between sessions.
+
+## Notebooks
+
 Every notebook works the same way:
 
 1. Open the notebook and fill in the cell **Your data**: one line per folder of Excel files, with the areas
@@ -19,27 +40,27 @@ EXPERIMENTS = [
 ]
 ```
 
-## Notebooks
+## The analyses (interface page / notebook)
 
 | Notebook | What it does |
 |---|---|
-| `01_division_phenotypes.ipynb` | Each mother as the vector of its cumulative number of divisions $N(t)$ (e.g. `0001111222233334`); hierarchical clustering of all the mothers together; heatmaps ordered by the dendrogram; fraction of each phenotype in each condition with bootstrap intervals over areas |
-| `02_length_phenotypes.ipynb` | The same on the length of the mother $L(t)$ (saw-tooth = dividing, flat = arrested, brighter and brighter = filament); options for the mothers past the channel exit and µm/px; lengths drawn in the order of the division clustering and cross-table of the two descriptions |
-| `03_growth_rate_length_bliss.ipynb` | The elongation velocity $v = \lambda L$ split exactly into rate × length × coupling; given a control, two monotherapies and their combination, the log-effect of each drug on each part and the Bliss prediction of the combination for a chosen window of time (95 % bootstrap over areas), and the same along time |
-| `04_quantile_bliss.ipynb` | Bliss on the whole distributions (quantile functions) of $v$, $\lambda$ and $L$: Bliss at every rank, the effects as vectors in 3-d (each drug, their sum, Bliss, observed), and the plane $Q_{AB}\approx Q_{ctrl}\rho_A^{\alpha}\rho_B^{\beta}$ with a bootstrap cloud of $(\alpha,\beta)$ (Bliss = (1,1), B alone = (0,1)); sensitivity to the window |
+| **2** · `01_division_phenotypes.ipynb` | Each mother as the vector of its cumulative number of divisions $N(t)$ (e.g. `0001111222233334`); hierarchical clustering of all the mothers together; heatmaps ordered by the dendrogram; fraction of each phenotype in each condition with bootstrap intervals over areas |
+| **3** · `02_length_phenotypes.ipynb` | The same on the length of the mother $L(t)$ (saw-tooth = dividing, flat = arrested, brighter and brighter = filament); options for the mothers past the channel exit and µm/px; lengths drawn in the order of the division clustering and cross-table of the two descriptions |
+| **4** · `03_growth_rate_length_bliss.ipynb` | The elongation velocity $v = \lambda L$ split exactly into rate × length × coupling; given a control, two monotherapies and their combination, the log-effect of each drug on each part and the Bliss prediction of the combination for a chosen window of time (95 % bootstrap over areas), and the same along time |
+| **5** · `04_quantile_bliss.ipynb` | Bliss on the whole distributions (quantile functions) of $v$, $\lambda$ and $L$: Bliss at every rank, the effects as vectors in 3-d (each drug, their sum, Bliss, observed), and the plane $Q_{AB}\approx Q_{ctrl}\rho_A^{\alpha}\rho_B^{\beta}$ with a bootstrap cloud of $(\alpha,\beta)$ (Bliss = (1,1), B alone = (0,1)); sensitivity to the window |
 
-## Installation
+## Installation without the installers
 
-Python ≥ 3.10 with the packages in `requirements.txt`:
+Python 3.10–3.12 with the packages in `requirements.txt` (tested versions):
 
 ```bash
-pip install -r requirements.txt
-jupyter lab
+conda env create -f environment.yml && conda activate mmanalysis     # or: pip install -r requirements.txt
+python check_install.py
+streamlit run app.py          # the interface
+jupyter lab                   # the notebooks
 ```
 
-If you already use the environment of the mother machine pipeline, it has everything that is needed.
-
-## Using the analyses without the notebooks (scripts, graphical interface)
+## Using the analyses from a script
 
 Each notebook is also one function that returns its figures and tables without printing anything, so a
 graphical interface only has to collect the experiments and the settings and show the result:
@@ -63,6 +84,8 @@ experiments, settings = mm.load_config('results/.../settings.json')   # re-run a
 ## Layout
 
 ```
+app.py                          the graphical interface (streamlit)
+install_*/start_*               installers and launchers (Windows / macOS)
 01_division_phenotypes.ipynb    the analyses (one notebook each)
 02_length_phenotypes.ipynb
 03_growth_rate_length_bliss.ipynb

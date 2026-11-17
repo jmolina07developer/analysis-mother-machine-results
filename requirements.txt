@@ -1,7 +1,12 @@
-numpy
-pandas
-scipy
-scikit-learn
-openpyxl
-matplotlib
-jupyterlab
+# Packages needed (tested versions). Installed by install_mac.command / install_windows.bat,
+# or by hand:  pip install -r requirements.txt
+numpy==2.2.6
+pandas==2.3.3
+scipy==1.15.3
+scikit-learn==1.7.2
+openpyxl==3.1.5
+matplotlib==3.10.9
+# graphical interface (app.py)
+streamlit==1.65.0
+# notebooks
+jupyterlab>=4.0

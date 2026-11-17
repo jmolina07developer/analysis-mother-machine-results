@@ -72,7 +72,8 @@ def window_means(IV, lo, hi, cover=0.6):
 def window_summary(W, conditions):
     """mothers, areas, means and medians of v, λ, L, doubling time, divisions per hour, coupling κ"""
     g = W.groupby('condition')
-    t = pd.DataFrame(dict(mothers=g.size(), areas=g.apply(lambda x: x[['experiment', 'area']].drop_duplicates().shape[0]),
+    areas = W[['condition', 'experiment', 'area']].drop_duplicates().groupby('condition').size()
+    t = pd.DataFrame(dict(mothers=g.size(), areas=areas,
                           v_mean=g.v.mean(), lam_mean=g.lam.mean(), L_mean=g.L.mean(),
                           v_median=g.v.median(), lam_median=g.lam.median(), L_median=g.L.median(),
                           doubling_min=np.log(2) / g.lam.mean(), div_per_h=g.div_per_h.mean()))
