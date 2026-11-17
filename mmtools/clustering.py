@@ -16,14 +16,16 @@ def cluster(X, method='ward'):
     return D, linkage(D, method)
 
 
-def choose_k(D, Z, units, ks=range(2, 9), n_boot=100, method='ward', seed=0):
+def choose_k(D, Z, units, ks=range(2, 9), n_boot=100, method='ward', seed=0, progress=None):
     """
     For each k: silhouette of the partition, and its stability when the units (areas) of each
     condition are resampled with replacement and the clustering is repeated (adjusted Rand index
     with the original partition, on the mothers drawn at least once).
     units: array with one label per mother, e.g. 'condition|experiment|area'; resampling is done
     within each condition (the part of the label before the first '|').
+    n_boot = 0 skips the stability (NaN columns). progress: optional function called as progress(done, total).
     """
+    ks = [k for k in ks if k < len(units)]
     rng = np.random.default_rng(seed)
     DM = squareform(D)
     ref = {k: fcluster(Z, k, 'maxclust') for k in ks}
@@ -33,17 +35,20 @@ def choose_k(D, Z, units, ks=range(2, 9), n_boot=100, method='ward', seed=0):
     by_cond = {c: np.unique(units[cond == c]) for c in np.unique(cond)}
     members = {u: np.flatnonzero(units == u) for u in np.unique(units)}
     ari = {k: [] for k in ks}
-    for _ in range(n_boot):
+    for b in range(n_boot):
+        if progress: progress(b, n_boot)
         idx = np.concatenate([members[u] for c, us in by_cond.items() for u in rng.choice(us, len(us), replace=True)])
         Zb = linkage(squareform(DM[np.ix_(idx, idx)], checks=False), method)
         _, first = np.unique(idx, return_index=True)
         for k in ks:
             ari[k].append(adjusted_rand_score(ref[k][idx[first]], fcluster(Zb, k, 'maxclust')[first]))
+    if progress: progress(n_boot, n_boot)
+    q = lambda v, f: f(v) if len(v) else np.nan
     return pd.DataFrame({
         'silhouette': sil,
-        'stability (median ARI)': {k: np.median(v) for k, v in ari.items()},
-        'ARI 10th pct': {k: np.percentile(v, 10) for k, v in ari.items()},
-        'ARI 90th pct': {k: np.percentile(v, 90) for k, v in ari.items()},
+        'stability (median ARI)': {k: q(v, np.median) for k, v in ari.items()},
+        'ARI 10th pct': {k: q(v, lambda x: np.percentile(x, 10)) for k, v in ari.items()},
+        'ARI 90th pct': {k: q(v, lambda x: np.percentile(x, 90)) for k, v in ari.items()},
         'smallest cluster (mothers)': {k: int(np.bincount(ref[k])[1:].min()) for k in ks},
     }).rename_axis('k')
 

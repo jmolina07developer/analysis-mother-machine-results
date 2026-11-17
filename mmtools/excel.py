@@ -125,48 +125,52 @@ def list_excels(folder):
 
 
 # ------------------------------------------------------------------ all the experiments
-def load_experiments(experiments, verbose=True):
+def load_experiments(experiments, base=None):
     """
-    experiments: list of dicts, one per (folder, condition):
+    experiments: list of dicts (or config.Entry objects, or a DataFrame), one per (folder, condition):
         folder      folder with the <area>-<date>_longitud_madres.xlsx files
         condition   name of the condition (several entries can share one condition)
         areas       'all' (default), '1-10', '1-5, 8', [1, 2, 3]
         flow_start  'HH:MM' start of the flow; None -> the first image of the folder is time 0
         name        optional label of the experiment (default: the date in the file names)
+    base: folder that relative paths are taken from (default: the current folder).
 
-    Returns one long table (one row per mother and image) with
-        condition, experiment, area, channel, mother (unique id), image, t (min since time 0),
-        L, L_daughter, divides, lost (the mother has already been lost at this image), empty, past_exit
-    and a summary table (one row per entry).
+    Returns (LM, summary):
+      LM       one row per channel and image: condition, experiment, area, channel, mother (unique id), image,
+               t (min since time 0), L, L_daughter, divides, lost (the mother has already been lost), empty, past_exit
+      summary  one row per entry: folder, areas, time 0, last image
     """
+    from .config import as_entries
     frames, summary, cache = [], [], {}
-    for k, e in enumerate(experiments):
-        folder = Path(e['folder'])
+    for k, e in enumerate(as_entries(experiments)):
+        folder = Path(base or '.') / e.folder
         files = list_excels(folder)
         if folder not in cache:                                          # read each folder once
             cache[folder] = {a: read_mother_excel(p) for a, p in files.items()}
         sheets = cache[folder]
-        want = parse_areas(e.get('areas', 'all'))
+        want = parse_areas(e.areas)
         areas = sorted(sheets) if want is None else sorted(want)
         missing = [a for a in areas if a not in sheets]
         if missing:
-            raise FileNotFoundError(f"entry {k} ({e['condition']}): no Excel file for areas {missing} in {folder}")
+            raise FileNotFoundError(f"entry {k + 1} ({e.condition}): no Excel file for areas {missing} in {folder}")
         is_clock = all(s.attrs['is_clock'] for s in sheets.values())
-        if e.get('flow_start') and is_clock:
-            t0, t0_from = clock_to_min(e['flow_start']), f"flow start {e['flow_start']}"
+        if e.flow_start and is_clock:
+            t0, t0_from = clock_to_min(e.flow_start), f'flow start {e.flow_start}'
         else:
             t0 = min(s.clock.min() for s in sheets.values())               # first image of the whole folder
             t0_from = 'first image of the folder'
-            if e.get('flow_start') and not is_clock:
+            if e.flow_start and not is_clock:
                 t0_from += ' (the Excel has no clock times, flow_start ignored)'
         date = FILE_RE.match(files[areas[0]].name).group(2)
-        name = e.get('name') or (f'{date[:2]}/{date[2:4]}/{date[4:]}' if len(date) == 8 else date)
+        name = e.name or (f'{date[:2]}/{date[2:4]}/{date[4:]}' if len(date) == 8 else date)
         for a in areas:
             d = sheets[a].copy()
             d['t'] = d.clock - t0
-            d['condition'], d['experiment'], d['area'] = e['condition'], name, a
+            d['condition'], d['experiment'], d['area'] = e.condition, name, a
             frames.append(d)
-        summary.append(dict(condition=e['condition'], experiment=name, folder=str(folder), areas=f'{areas[0]}–{areas[-1]}' if areas == list(range(areas[0], areas[-1] + 1)) else ', '.join(map(str, areas)),
+        contiguous = areas == list(range(areas[0], areas[-1] + 1))
+        summary.append(dict(condition=e.condition, experiment=name, folder=str(e.folder),
+                            areas=f'{areas[0]}–{areas[-1]}' if contiguous else ', '.join(map(str, areas)),
                             n_areas=len(areas), time_zero=t0_from,
                             last_image_min=round(max(sheets[a].clock.max() - t0 for a in areas), 1)))
     LM = pd.concat(frames, ignore_index=True)
@@ -179,7 +183,4 @@ def load_experiments(experiments, verbose=True):
     LM['lost'] |= gone
     cols = ['condition', 'experiment', 'area', 'channel', 'mother', 'image', 't', 'L', 'L_daughter',
             'divides', 'lost', 'empty', 'past_exit']
-    S = pd.DataFrame(summary)
-    if verbose:
-        print(f"{LM.mother.nunique()} channels in {S.n_areas.sum()} areas, {len(S)} entries")
-    return LM[cols], S
+    return LM[cols], pd.DataFrame(summary)
